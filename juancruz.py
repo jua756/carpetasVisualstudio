@@ -2,98 +2,184 @@ import pygame
 import random
 import sys
 
-# 1. INICIALIZACIÓN
 pygame.init()
 
-# 2. VARIABLES DE CONFIGURACIÓN (VENTANA)
+# -------------------------
+# CONFIGURACIÓN DE VENTANA
+# -------------------------
 ANCHO = 500
 ALTO = 600
 pantalla = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Juego simple con arrays")
 
-# 3. VARIABLES DEL JUGADOR
-player_x = ANCHO // 2  # Posición inicial X (centro)
-player_y = ALTO - 50   # Posición inicial Y (cerca del borde inferior)
-player_size = 40       # Tamaño (lado del cuadrado)
-player_vel = 5         # Velocidad de movimiento
-
-# 4. ESTRUCTURA DE DATOS (ARRAY/LISTA)
-# Contendrá la información de cada obstáculo: [x, y, tamaño, velocidad]
-obstaculos = []
-
-# 5. VARIABLES DE CONTROL
 clock = pygame.time.Clock()
-running = True  # Controla el BUCLE PRINCIPAL
 
-# 6. BUCLE PRINCIPAL (Game Loop)
-while running:  # BUCLE WHILE para mantener el juego activo
-    # Limita la velocidad del bucle a 60 cuadros por segundo
+# -------------------------
+# VARIABLES DEL JUGADOR
+# -------------------------
+player_size = 40
+player_vel = 5
+
+# -------------------------
+# ESTADOS DEL JUEGO
+# -------------------------
+STATE_MENU = 0
+STATE_VOCAB = 1
+STATE_PLAYING = 2
+STATE_GAME_OVER = 3
+game_state = STATE_MENU
+
+# -------------------------
+# FUNCIÓN PARA REINICIAR
+# -------------------------
+def reset_game():
+    global player_x, player_y, obstaculos
+    player_x = ANCHO // 2
+    player_y = ALTO - 50
+    obstaculos = []
+
+reset_game()
+
+# Lista de vocabulario
+vocabulario = [
+    "Start = Comenzar",
+    "Exit = Salir",
+    "Game Over = Fin del juego",
+    "Move Left = Mover a la izquierda",
+    "Move Right = Mover a la derecha",
+    "Left Arrow = Flecha izquierda",
+    "Right Arrow = Flecha derecha"
+]
+
+running = True
+
+# -------------------------
+# LOOP PRINCIPAL
+# -------------------------
+while running:
     clock.tick(60)
 
-    # GESTIÓN DE EVENTOS
-    for e in pygame.event.get():  # BUCLE FOR para procesar eventos
-        if e.type == pygame.QUIT:  # CONDICIONAL IF: Si el usuario cierra la ventana
+    # EVENTOS
+    for e in pygame.event.get():
+        if e.type == pygame.QUIT:
             running = False
 
-    # MOVIMIENTO DEL JUGADOR
-    teclas = pygame.key.get_pressed()  # Obtiene el estado de todas las teclas
-
-    # CONDICIONAL IF: Mover a la izquierda
-    if teclas[pygame.K_LEFT]:
-        player_x -= player_vel
-
-    # CONDICIONAL IF: Mover a la derecha (separado del anterior)
-    if teclas[pygame.K_RIGHT]:
-        player_x += player_vel
-
-    # LÍMITES DE PANTALLA (CONDICIONALES para evitar que el jugador se salga)
-    if player_x < 0:
-        player_x = 0
-    if player_x > ANCHO - player_size:
-        player_x = ANCHO - player_size
-
-    # CREACIÓN DE OBSTÁCULOS
-    # CONDICIONAL IF: Se crea un nuevo obstáculo basado en una probabilidad baja
-    if random.random() < 0.02:
-        x = random.randint(0, ANCHO - 30)
-        y = -30
-        tamaño = 30
-        vel = 4
-        # AGREGADO AL ARRAY (Lista) de obstáculos
-        obstaculos.append([x, y, tamaño, vel])
-
-    # ACTUALIZAR POSICIÓN DE OBSTÁCULOS
-    for obs in obstaculos:  # BUCLE FOR para mover cada obstáculo
-        obs[1] += obs[3]  # obs[1] es la 'y', obs[3] es la 'vel'
-
-    # LIMPIEZA DE OBSTÁCULOS
-    # BUCLE INTERNO (List comprehension) + CONDICIONAL para eliminar los que salen de la pantalla
-    obstaculos = [o for o in obstaculos if o[1] < ALTO + 40]
-
-    # COMPROBACIÓN DE COLISIONES
-    jugador_rect = pygame.Rect(player_x, player_y, player_size, player_size)
-    
-    for o in obstaculos:  # BUCLE FOR para revisar colisión con cada obstáculo
-        obs_rect = pygame.Rect(o[0], o[1], o[2], o[2])
-        
-        if jugador_rect.colliderect(obs_rect):  # CONDICIONAL IF: Detección de colisión
-            print("GAME OVER")
-            running = False # Opcional: Para salir del bucle
+        # TECLA ESC → salir
+        if e.type == pygame.KEYDOWN and e.key == pygame.K_ESCAPE:
             pygame.quit()
-            sys.exit() # Terminación forzada del programa para cerrar la ventana
+            sys.exit()
 
-    # 7. DIBUJO EN PANTALLA
-    pantalla.fill((20, 20, 20)) # Fondo oscuro
-    
-    # Dibujar jugador
-    pygame.draw.rect(pantalla, (100, 255, 255), (player_x, player_y, player_size, player_size))
-    
-    # Dibujar obstáculos
-    for o in obstaculos:  # BUCLE FOR para dibujar todos los obstáculos
-        pygame.draw.rect(pantalla, (255, 100, 100), (o[0], o[1], o[2], o[2]))
-        
-    # Actualiza la pantalla para mostrar lo que se ha dibujado
+        # -------------------------
+        # ESTADO: MENU INICIAL
+        # -------------------------
+        if game_state == STATE_MENU:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
+                game_state = STATE_VOCAB  # primero se muestra vocabulario
+
+        # -------------------------
+        # ESTADO: VOCABULARIO
+        # -------------------------
+        elif game_state == STATE_VOCAB:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_RETURN:
+                game_state = STATE_PLAYING
+
+        # -------------------------
+        # ESTADO: GAME OVER
+        # -------------------------
+        elif game_state == STATE_GAME_OVER:
+            if e.type == pygame.KEYDOWN and e.key == pygame.K_SPACE:
+                reset_game()
+                game_state = STATE_PLAYING
+
+    # -------------------------
+    # ESTADO: JUGANDO
+    # -------------------------
+    if game_state == STATE_PLAYING:
+
+        teclas = pygame.key.get_pressed()
+
+        # Movimiento del jugador
+        if teclas[pygame.K_LEFT]:
+            player_x -= player_vel
+        if teclas[pygame.K_RIGHT]:
+            player_x += player_vel
+
+        # Límites
+        if player_x < 0:
+            player_x = 0
+        if player_x > ANCHO - player_size:
+            player_x = ANCHO - player_size
+
+        # Crear obstáculos
+        if random.random() < 0.02:
+            x = random.randint(0, ANCHO - 30)
+            y = -30
+            tamaño = 30
+            vel = 4
+            obstaculos.append([x, y, tamaño, vel])
+
+        # Mover obstáculos
+        for obs in obstaculos:
+            obs[1] += obs[3]
+
+        # Limpiar obstáculos fuera de pantalla
+        obstaculos = [o for o in obstaculos if o[1] < ALTO + 40]
+
+        # Colisiones
+        jugador_rect = pygame.Rect(player_x, player_y, player_size, player_size)
+        for o in obstaculos:
+            obs_rect = pygame.Rect(o[0], o[1], o[2], o[2])
+            if jugador_rect.colliderect(obs_rect):
+                game_state = STATE_GAME_OVER
+
+    # -------------------------
+    # DIBUJADO EN PANTALLA
+    # -------------------------
+    pantalla.fill((20, 20, 20))
+    font = pygame.font.SysFont(None, 32)
+
+    # -------------------------
+    # PANTALLA MENU
+    # -------------------------
+    if game_state == STATE_MENU:
+        texto = font.render("Press SPACE to start", True, (255, 255, 255))
+        pantalla.blit(texto, (ANCHO//2 - texto.get_width()//2, ALTO//2))
+
+    # -------------------------
+    # PANTALLA VOCABULARIO
+    # -------------------------
+    elif game_state == STATE_VOCAB:
+        y_offset = 80
+        title = font.render("VOCABULARY LIST:", True, (255, 255, 0))
+        pantalla.blit(title, (20, 20))
+
+        for palabra in vocabulario:
+            linea = font.render(palabra, True, (255, 255, 255))
+            pantalla.blit(linea, (20, y_offset))
+            y_offset += 40
+
+        msg = font.render("Press ENTER to close the vocabulary list", True, (150, 200, 255))
+        pantalla.blit(msg, (20, ALTO - 60))
+
+    # -------------------------
+    # PANTALLA DEL JUEGO
+    # -------------------------
+    elif game_state == STATE_PLAYING:
+        pygame.draw.rect(pantalla, (100, 255, 255), (player_x, player_y, player_size, player_size))
+
+        for o in obstaculos:
+            pygame.draw.rect(pantalla, (255, 100, 100), (o[0], o[1], o[2], o[2]))
+
+    # -------------------------
+    # PANTALLA GAME OVER
+    # -------------------------
+    elif game_state == STATE_GAME_OVER:
+        txt = font.render("GAME OVER", True, (255, 50, 50))
+        pantalla.blit(txt, (ANCHO//2 - txt.get_width()//2, ALTO//2 - 40))
+
+        txt2 = font.render("Press SPACE to play again", True, (255, 255, 255))
+        pantalla.blit(txt2, (ANCHO//2 - txt2.get_width()//2, ALTO//2 + 10))
+
     pygame.display.flip()
 
-# 8. SALIDA DEL JUEGO
 pygame.quit()
